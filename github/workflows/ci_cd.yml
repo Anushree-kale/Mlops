@@ -24,11 +24,11 @@ jobs:
     # ── Step 3: Install Dependencies ──────────────────
     - name: Install dependencies
       run: |
-        pip install pandas numpy scikit-learn joblib
+        pip install -r requirements.txt
 
     # ── Step 4: Run Training Script ───────────────────
     - name: Train Model
-      run: python versioning.py
+      run: python main.py
 
     # ── Step 5: Run Tests ─────────────────────────────
     - name: Run Tests
@@ -36,7 +36,11 @@ jobs:
 
     # ── Step 6: Build Docker Image ────────────────────
     - name: Build Docker Image
-      run: docker build -t iris-ml-model .
+      run: docker build -t iris-ml-model:latest -t iris-ml-model:v1.0 .
+      
+    # ── Step 8: Simulated Deployment ──────────────
+    - name: Verify Docker Image
+      run: docker images | grep iris-ml-model
 
     # ── Step 7: Simulated Deployment ──────────────────
     - name: Deploy (Test Environment)
