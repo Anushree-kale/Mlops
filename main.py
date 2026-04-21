@@ -1,65 +1,90 @@
-# Iris Dataset - Model Training
-# Uses scikit-learn's built-in Iris dataset (same as Kaggle's iris.csv)
-
-import numpy as np
+# ── 1. Imports ─────────────────────────────────────────────
 import pandas as pd
-from sklearn.datasets import load_iris
+import numpy as np
+import joblib
+from datetime import datetime
+
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.metrics import accuracy_score
 
-# ── 1. Load Data ──────────────────────────────────────────────────────────────
-# Option A: Load from sklearn (identical to Kaggle's iris.csv)
-iris = load_iris()
-X = pd.DataFrame(iris.data, columns=iris.feature_names)
-y = pd.Series(iris.target, name="species")
+# ── 2. Load Dataset ────────────────────────────────────────
+# Make sure iris.csv is in same folder
+df = pd.read_csv("iris.csv")
 
-# Option B: Load from Kaggle CSV (uncomment if you have the file)
-# df = pd.read_csv("iris.csv")
-# X = df[["sepal_length", "sepal_width", "petal_length", "petal_width"]d]
-# y = df["species"].map({"Iris-setosa": 0, "Iris-versicolor": 1, "Iris-virginica": 2})
+# Features and target
+X = df.iloc[:, :-1]
+y = df.iloc[:, -1]
 
-print("Dataset shape:", X.shape)
-print("\nFirst 5 rows:")
-print(X.head())
-print("\nClass distribution:")
-print(y.value_counts())
+# Convert labels if needed
+if y.dtype == 'object':
+    y = y.astype('category').cat.codes
 
-# ── 2. Train / Test Split ─────────────────────────────────────────────────────
+print("Dataset loaded:", X.shape)
+
+# ── 3. Train-Test Split ────────────────────────────────────
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
-print(f"\nTrain size: {len(X_train)} | Test size: {len(X_test)}")
 
-# ── 3. Feature Scaling ────────────────────────────────────────────────────────
+# ── 4. Scaling ─────────────────────────────────────────────
 scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)
-X_test_scaled  = scaler.transform(X_test)
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
 
-# ── 4. Train Model ────────────────────────────────────────────────────────────
-model = RandomForestClassifier(n_estimators=100, random_state=42)
-model.fit(X_train_scaled, y_train)
-print("\nModel training complete!")
+# ── 5. Define Experiments ─────────────────────────────────
+experiments = [
+    {"n_estimators": 50, "max_depth": 3},
+    {"n_estimators": 100, "max_depth": 5},
+    {"n_estimators": 150, "max_depth": None},
+    {"n_estimators": 200, "max_depth": 10},
+]
 
-# ── 5. Evaluate ───────────────────────────────────────────────────────────────
-y_pred = model.predict(X_test_scaled)
+# ── 6. Run Experiments + Versioning ───────────────────────
+results = []
 
-print(f"\nAccuracy: {accuracy_score(y_test, y_pred) * 100:.2f}%")
+for i, params in enumerate(experiments):
 
-print("\nClassification Report:")
-print(classification_report(y_test, y_pred, target_names=iris.target_names))
+    print(f"\nRunning Experiment {i+1}: {params}")
 
-print("Confusion Matrix:")
-print(confusion_matrix(y_test, y_pred))
+    model = RandomForestClassifier(
+        n_estimators=params["n_estimators"],
+        max_depth=params["max_depth"],
+        random_state=42
+    )
 
-# ── 6. Feature Importance ─────────────────────────────────────────────────────
-print("\nFeature Importances:")
-for name, importance in zip(iris.feature_names, model.feature_importances_):
-    print(f"  {name:<30} {importance:.4f}")
+    model.fit(X_train, y_train)
 
-# ── 7. Predict on New Sample ──────────────────────────────────────────────────
-sample = np.array([[5.1, 3.5, 1.4, 0.2]])  # Known Setosa
-sample_scaled = scaler.transform(sample)
-prediction = model.predict(sample_scaled)
-print(f"\nSample prediction: {iris.target_names[prediction[0]]}")
+    #  Save model (versioning)
+    model_name = f"model_v{i+1}.pkl"
+    joblib.dump(model, model_name)
+
+    # Evaluate
+    y_pred = model.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+
+    print(f"Accuracy: {acc:.4f}")
+
+    # Store results
+    results.append({
+        "version": f"v{i+1}",
+        "model_file": model_name,
+        "n_estimators": params["n_estimators"],
+        "max_depth": params["max_depth"],
+        "accuracy": acc,
+        "timestamp": datetime.now()
+    })
+
+# ── 7. Save Experiment Logs ───────────────────────────────
+results_df = pd.DataFrame(results)
+
+results_df.to_csv("experiment_runs.csv", index=False)
+
+print("\n All experiments saved!")
+
+# ── 8. Best Model ─────────────────────────────────────────
+best = results_df.sort_values(by="accuracy", ascending=False).iloc[0]
+
+print("\n Best Model:")
+print(best)
