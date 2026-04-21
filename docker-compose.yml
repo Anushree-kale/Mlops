@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  # Service for training the models
+  trainer:
+    build: .
+    volumes:
+      - .:/app
+    command: python main.py
+
+  # Service for serving the model via API
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    command: uvicorn ab_testing_api:app --host 0.0.0.0 --port 8000
+    depends_on:
+      - trainer
