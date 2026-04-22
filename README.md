@@ -9,10 +9,6 @@ A FastAPI-based machine learning service that implements A/B testing between two
 pip install -r requirements.txt
 `
 
-### 2. Run the API
-`ash
-uvicorn ab_testing_api:app --reload --host 0.0.0.0 --port 8000
-`
 
 ### 3. Test A/B Testing
 
